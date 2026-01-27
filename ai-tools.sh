@@ -1,0 +1,211 @@
+#!/bin/bash
+
+# ==============================================================================
+# AI 全能管理工具 (AI-Tools)
+# 支持工具：Claude Code, Gemini CLI, Antigravity, OpenCode, Cursor 等
+# 功能：仓库更新、Skill 分发链接、状态查询、失效清理
+# ==============================================================================
+
+# 颜色定义
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# --- 配置区 ---
+
+# 用于更新扫描的根目录
+UPDATE_ROOTS=(
+    "$HOME/.claude" "$HOME/.gemini" "$HOME/.antigravity" "$HOME/.cursor"
+    "$HOME/.cherrystudio" "$HOME/.codeium" "$HOME/.augment" "$HOME/.trae"
+    "$HOME/.cc-switch" "$HOME/cc-switch-repo" "$HOME/.superpowers"
+    "$HOME/.cache/opencode" "$HOME/.cache/oh-my-opencode" "$HOME/.config/opencode"
+)
+
+# 用于 Skill 链接的目标目录
+SKILL_DIRS=(
+    "$HOME/.claude/skills"
+    "$HOME/.gemini/skills"
+    "$HOME/.antigravity/skills"
+    "$HOME/.opencode/skills"
+)
+
+# 排除模式
+EXCLUDE_PATTERN="(/tmp/|/cache/|/node_modules/|/.Trash/|/logs/|/history/)"
+
+# --- 全局变量 ---
+UPDATED_REPOS=""
+
+# --- 核心函数 ---
+
+# 显示用法
+usage() {
+    echo -e "${BLUE}AI-Tools 统一管理工具${NC}"
+    echo -e "用法: $0 <命令> [参数]"
+    echo -e "\n${YELLOW}可用命令:${NC}"
+    echo -e "  ${GREEN}update${NC}            强制同步所有 AI 仓库和 Skill 源码"
+    echo -e "  ${GREEN}link <路径>${NC}      将指定路径下的 Skill 软链接到所有 AI 工具"
+    echo -e "  ${GREEN}list${NC}              查看当前各工具已加载的 Skill 状态"
+    echo -e "  ${GREEN}remove <名称>${NC}     移除指定名称的 Skill 链接"
+    echo -e "  ${GREEN}cleanup${NC}           清理所有失效的软链接"
+    echo -e "  ${GREEN}q / exit${NC}          退出交互模式"
+    
+    echo -e "\n${YELLOW}使用示例:${NC}"
+    echo -e "  AI-Tools > ${CYAN}link ~/.superpowers${NC}       # 链接 superpowers 下的所有技能"
+    echo -e "  AI-Tools > ${CYAN}remove brainstorming${NC}     # 从所有工具中移除 brainstorming 技能"
+    echo -e "  AI-Tools > ${CYAN}update${NC}                   # 更新所有源码仓库"
+    echo ""
+}
+
+# 更新单个仓库
+update_repo() {
+    local repo_dir="$1"
+    repo_dir=$(cd "$repo_dir" 2>/dev/null && pwd)
+    [ -z "$repo_dir" ] && return
+    
+    case "$UPDATED_REPOS" in *":$repo_dir:"*) return ;; esac
+    UPDATED_REPOS="$UPDATED_REPOS:$repo_dir:"
+
+    local display_path="${repo_dir/#$HOME/\~}"
+    echo -e "检查仓库: ${YELLOW}${display_path}${NC}"
+    
+    (
+        cd "$repo_dir" || return
+        if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then return; fi
+
+        if [ -n "$(git status --porcelain)" ]; then
+            echo -e "  ${YELLOW}⚠ 强制同步远端 (丢弃本地更改)${NC}"
+            git reset --hard HEAD >/dev/null 2>&1
+            git clean -fd >/dev/null 2>&1
+        fi
+
+        output=$(git pull 2>&1)
+        if [ $? -eq 0 ]; then
+            [[ "$output" == *"Already up to date"* ]] && echo -e "  ${GREEN}✓ 已是最新${NC}" || echo -e "  ${GREEN}✓ 更新成功${NC}"
+        else
+            echo -e "  ${RED}✗ 更新失败:${NC}\n$(echo "$output" | head -n 3 | sed 's/^/    /')"
+        fi
+    )
+}
+
+# 执行全局更新
+cmd_update() {
+    echo -e "${BLUE}开始扫描并强制更新 AI 资源...${NC}"
+    for root in "${UPDATE_ROOTS[@]}"; do
+        [ ! -d "$root" ] && continue
+        # 1. 找 .git
+        find -L "$root" -type d -name ".git" -maxdepth 8 2>/dev/null | while read -r g;
+        do
+            [[ "$g" =~ $EXCLUDE_PATTERN ]] && continue
+            update_repo "$(dirname "$g")"
+        done
+        # 2. 找 SKILL.md
+        find -L "$root" -type f -name "SKILL.md" -maxdepth 8 2>/dev/null | while read -r s;
+        do
+            [[ "$s" =~ $EXCLUDE_PATTERN ]] && continue
+            repo_root=$(cd "$(dirname "$s")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+            [ -n "$repo_root" ] && update_repo "$repo_root"
+        done
+    done
+    echo -e "${GREEN}更新任务完成。${NC}"
+}
+
+# 链接 Skill
+cmd_link() {
+    local src_path=$(cd "$1" 2>/dev/null && pwd)
+    [ -z "$src_path" ] && echo -e "${RED}错误: 路径不存在 $1${NC}" && exit 1
+
+    find_and_link() {
+        local skill_src="$1"
+        local name=$(basename "$skill_src")
+        echo -e "${YELLOW}链接 Skill: $name${NC}"
+        for target_dir in "${SKILL_DIRS[@]}"; do
+            mkdir -p "$target_dir"
+            local link_dest="$target_dir/$name"
+            [ -L "$link_dest" ] && rm "$link_dest"
+            ln -s "$skill_src" "$link_dest"
+            echo -e "  ${GREEN}✓${NC} -> ${target_dir/#$HOME/\~}"
+        done
+    }
+
+    if [ -f "$src_path/SKILL.md" ]; then
+        find_and_link "$src_path"
+    else
+        find "$src_path" -name "SKILL.md" -maxdepth 3 | while read -r s;
+        do
+            find_and_link "$(dirname "$s")"
+        done
+    fi
+}
+
+# 列出 Skill
+cmd_list() {
+    echo -e "${BLUE}当前 Skill 链接状态:${NC}"
+    for dir in "${SKILL_DIRS[@]}"; do
+        if [ -d "$dir" ]; then
+            echo -e "\n目录: ${YELLOW}${dir/#$HOME/\~}${NC}"
+            local count=$(find "$dir" -maxdepth 1 -type l | wc -l)
+            if [ $count -gt 0 ]; then
+                find "$dir" -maxdepth 1 -type l -exec ls -ld {} \; | sed 's/.* \(.*\) -> \(.*\)/  \1 -> \2/' | while read -r line;
+                do
+                    # 检查目标是否存在
+                    target=$(echo "$line" | awk -F' -> ' '{print $2}')
+                    [[ -e "$target" ]] && echo -e "  ${GREEN}✓${NC} $line" || echo -e "  ${RED}✗ (失效)${NC} $line"
+                done
+            else
+                echo "  (无链接)"
+            fi
+        fi
+    done
+}
+
+# 移除 Skill
+cmd_remove() {
+    local name="$1"
+    [ -z "$name" ] && usage
+    echo -e "${YELLOW}正在移除 Skill: $name${NC}"
+    for dir in "${SKILL_DIRS[@]}"; do
+        [ -L "$dir/$name" ] && rm "$dir/$name" && echo "  已从 ${dir/#$HOME/\~} 移除"
+    done
+}
+
+# 清理失效
+cmd_cleanup() {
+    echo -e "${BLUE}正在清理所有失效的 Skill 链接...${NC}"
+    for dir in "${SKILL_DIRS[@]}"; do
+        [ -d "$dir" ] && find "$dir" -type l ! -exec test -e {} \; -delete -print | sed 's/^/  已删除: /'
+    done
+    echo -e "${GREEN}清理完毕。${NC}"
+}
+
+# --- 命令分发器 ---
+dispatch_cmd() {
+    case "$1" in
+        update)  cmd_update ;;
+        link)    cmd_link "$2" ;;
+        list)    cmd_list ;;
+        remove)  cmd_remove "$2" ;;
+        cleanup) cmd_cleanup ;;
+        q|quit|exit) exit 0 ;;
+        *)       [ -n "$1" ] && echo -e "${RED}未知命令: $1${NC}"; usage ;;
+    esac
+}
+
+# --- 主逻辑 ---
+
+if [ $# -gt 0 ]; then
+    # 直接运行命令行参数并退出
+    dispatch_cmd "$@"
+else
+    # 进入持续交互模式
+    usage
+    echo -e "${BLUE}已进入持续交互模式。输入 'q' 退出。${NC}"
+    while true; do
+        echo -ne "${YELLOW}AI-Tools > ${NC}"
+        read -r user_cmd
+        [ -z "$user_cmd" ] && continue
+        dispatch_cmd $user_cmd
+    done
+fi
