@@ -1,61 +1,50 @@
 # AI Tools Suite 🤖
 
-一套专为 AI Agent 开发者打造的高效管理工具集，旨在简化多 Agent 环境（Claude, Gemini, Antigravity 等）下的 Skill 同步与资源维护。
+一组用于管理本地 AI 工具环境的实用 Shell 脚本。主要用于在多个 AI 助手（Claude, Gemini, Antigravity 等）之间共享/分发 Skills，批量更新相关仓库，以及维护工具配置数据。
 
 ## 🛠 核心工具
 
 ### 1. Agent Sync (`agent-sync`)
 
-**Agent Sync** 是一个全能环境同步工具，负责保持你的 Agent 工作流一致。它解决了手动管理多个 AI 工具配置繁琐的问题。
+**Agent Sync** 是一个环境同步与管理脚本，用于自动化维护你的 AI 工具箱。
 
-*   **🚀 Skill 分发 (Link)**: 一键将本地 Skill 源码分发挂载到所有主流 AI Agent 工具的配置目录中，实现“一次编写，到处运行”。
-*   **🔄 全局更新 (Update)**: 深度扫描系统中的 AI 相关目录，自动识别 Git 仓库，并强制同步远端最新代码（自动处理冲突）。
-*   **🔍 状态大盘 (List)**: 清晰展示当前各工具已加载的 Skill 列表、指向路径以及链接有效性。
-*   **🧹 自动维护 (Cleanup)**: 智能识别并移除失效的软链接和残留配置。
+*   **🚀 Skill 分发 (Link)**: 将本地的 Skill 目录软链接到所有支持的 AI 工具（Claude, Gemini, OpenCode 等）中，实现配置共享。
+*   **🔄 批量更新 (Update)**: 一键扫描并更新系统中的 AI 相关 Git 仓库（包括工具源码和配置库），保持环境最新。
+*   **🔍 状态管理 (List/Cleanup)**: 查看 Skill 挂载状态，自动清理失效的链接。
 
-**支持环境：**
-*   Claude Code (`~/.claude`)
-*   Gemini CLI (`~/.gemini`)
-*   Antigravity (`~/.antigravity`)
-*   OpenCode (`~/.opencode`)
+**支持工具：**
+*   Claude Code
+*   Gemini CLI
+*   Antigravity
+*   OpenCode
 *   各类 AI IDE 插件目录
 
 **使用示例：**
 ```bash
-# 进入交互模式（推荐）
+# 更新所有仓库并进入交互模式
+./agent-sync update
 ./agent-sync
-
-# 命令行快捷操作
-./agent-sync update               # 更新所有 AI 仓库
-./agent-sync link ~/my-skills     # 将指定目录下的 Skill 挂载到所有 Agent
-./agent-sync list                 # 查看当前挂载状态
 ```
 
 ### 2. CC Prune (`cc-prune`)
 
-**CC Prune** 是专为 **CC Switch** 设计的数据库维护工具。
+**CC Prune** 是 **CC Switch** 的辅助维护工具。
 
-*   **安全修剪**: 提供交互式界面，列出并安全删除不再使用的 Provider 记录。
-*   **深度清理**: 级联删除与 Provider 关联的所有 Endpoints 数据。
-*   **自动备份**: 每次执行删除操作前，自动在同目录下创建带时间戳的数据库备份，确保数据安全。
+*   **数据库清理**: 交互式地从 SQLite 数据库中安全删除不再使用的 Provider 记录。
+*   **关联清理**: 自动级联删除相关的 Endpoints 数据。
+*   **自动备份**: 操作前自动备份数据库，防止误删。
 
 **使用示例：**
 ```bash
 ./cc-prune
 ```
 
-## 📦 安装与配置
+## 📦 安装
 
 ```bash
-# 1. 克隆仓库
 git clone git@github.com:ly87ing/ai-tools.git
 cd ai-tools
-
-# 2. 赋予执行权限
 chmod +x agent-sync cc-prune
-
-# 3. (可选) 添加到 PATH
-# export PATH=$PATH:$(pwd)
 ```
 
 ---
