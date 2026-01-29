@@ -14,7 +14,7 @@ if [ ! -f "$DB_PATH" ]; then
     exit 1
 fi
 
-echo "=== CC-Switch Provider 清理工具 ==="
+echo "=== CC-Switch Provider Prune (清理工具) ==="
 echo "数据库路径: $DB_PATH"
 
 # 列出当前所有 Provider

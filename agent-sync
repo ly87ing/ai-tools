@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# AI 全能管理工具 (AI-Tools)
+# Agent Sync - AI 环境同步与管理工具
 # 支持工具：Claude Code, Gemini CLI, Antigravity, OpenCode, Cursor 等
 # 功能：仓库更新、Skill 分发链接、状态查询、失效清理
 # ==============================================================================
@@ -42,7 +42,7 @@ UPDATED_REPOS=""
 
 # 显示用法
 usage() {
-    echo -e "${BLUE}AI-Tools 统一管理工具${NC}"
+    echo -e "${BLUE}Agent Sync (AI 环境同步工具)${NC}"
     echo -e "用法: $0 <命令> [参数]"
     echo -e "\n${YELLOW}可用命令:${NC}"
     echo -e "  ${GREEN}update${NC}            强制同步所有 AI 仓库和 Skill 源码"
@@ -53,9 +53,9 @@ usage() {
     echo -e "  ${GREEN}q / exit${NC}          退出交互模式"
     
     echo -e "\n${YELLOW}使用示例:${NC}"
-    echo -e "  AI-Tools > ${CYAN}link ~/.superpowers${NC}       # 链接 superpowers 下的所有技能"
-    echo -e "  AI-Tools > ${CYAN}remove brainstorming${NC}     # 从所有工具中移除 brainstorming 技能"
-    echo -e "  AI-Tools > ${CYAN}update${NC}                   # 更新所有源码仓库"
+    echo -e "  Agent-Sync > ${CYAN}link ~/.superpowers${NC}       # 链接 superpowers 下的所有技能"
+    echo -e "  Agent-Sync > ${CYAN}remove brainstorming${NC}     # 从所有工具中移除 brainstorming 技能"
+    echo -e "  Agent-Sync > ${CYAN}update${NC}                   # 更新所有源码仓库"
     echo ""
 }
 
@@ -203,7 +203,7 @@ else
     usage
     echo -e "${BLUE}已进入持续交互模式。输入 'q' 退出。${NC}"
     while true; do
-        echo -ne "${YELLOW}AI-Tools > ${NC}"
+        echo -ne "${YELLOW}Agent-Sync > ${NC}"
         read -r user_cmd
         [ -z "$user_cmd" ] && continue
         dispatch_cmd $user_cmd
